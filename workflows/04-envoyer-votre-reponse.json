@@ -1,0 +1,431 @@
+{
+  "name": "Service client 04 - Envoyer votre réponse",
+  "nodes": [
+    {
+      "parameters": {
+        "content": "## 04 · Envoyer votre réponse\n\nPour une demande « à traiter », relisez le **brouillon**, complétez-le, et collez votre texte final dans la colonne **votre_reponse** du tableur. Dans la minute, il part au client tel quel, et la demande passe à « répondue (humain) ».\n\nUne seule réponse par demande : si la demande n'est plus « à traiter », rien ne part (« demande déjà traitée »).\n\n**À régler** : votre tableur (déclencheur et 2 nœuds Google Sheets), « Vos réglages », SMTP.",
+        "width": 820,
+        "height": 280,
+        "color": 4
+      },
+      "id": "d928f5fc-4bd4-573f-9d5f-388fca862aeb",
+      "name": "Note",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -40,
+        -320
+      ]
+    },
+    {
+      "parameters": {
+        "pollTimes": {
+          "item": [
+            {
+              "mode": "everyMinute"
+            }
+          ]
+        },
+        "documentId": {
+          "__rl": true,
+          "mode": "list",
+          "value": ""
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "name",
+          "value": "Demandes"
+        },
+        "event": "rowUpdate",
+        "options": {
+          "columnsToWatch": [
+            "votre_reponse"
+          ]
+        }
+      },
+      "id": "82b22e5b-51bb-5713-b5f1-2f09ddfed2a0",
+      "name": "Réponse écrite dans le tableur",
+      "type": "n8n-nodes-base.googleSheetsTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        100
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "r1",
+              "leftValue": "={{ $json.votre_reponse }}",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty",
+                "singleValue": true
+              }
+            },
+            {
+              "id": "r2",
+              "leftValue": "={{ $json.statut }}",
+              "rightValue": "à traiter",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "1eaac8b4-5295-5c31-9426-6cd0b75b9d44",
+      "name": "Réponse à envoyer ?",
+      "type": "n8n-nodes-base.filter",
+      "typeVersion": 2.2,
+      "position": [
+        220,
+        100
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "manual",
+        "includeOtherFields": true,
+        "include": "all",
+        "assignments": {
+          "assignments": [
+            {
+              "id": "995ad8da-cb65-5b57-8a35-f2f9c43a5a91",
+              "name": "expediteur",
+              "value": "Votre boutique <service-client@votre-boutique.fr>",
+              "type": "string"
+            },
+            {
+              "id": "3c10ef5e-40ef-5e22-bd1e-5ffd277dddbb",
+              "name": "repondre_a",
+              "value": "service-client@votre-boutique.fr",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "7316c691-0f32-564e-8537-8929e8d57a20",
+      "name": "Vos réglages",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        440,
+        100
+      ]
+    },
+    {
+      "parameters": {
+        "fromEmail": "={{ $json.expediteur }}",
+        "toEmail": "={{ $json.de_email }}",
+        "subject": "=Re: {{ String($json.sujet).replace(/\\s*\\[REF [^\\]]+\\]/g, '') }} [REF {{ $json.demande_id }}]",
+        "emailFormat": "text",
+        "text": "={{ $json.votre_reponse }}",
+        "options": {
+          "appendAttribution": false,
+          "replyTo": "={{ $json.repondre_a }}"
+        }
+      },
+      "id": "42183051-c6bd-56b5-b9f7-a2d3b462f062",
+      "name": "Envoyer votre réponse",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2.1,
+      "position": [
+        660,
+        100
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "documentId": {
+          "__rl": true,
+          "mode": "list",
+          "value": ""
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "name",
+          "value": "Demandes"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "matchingColumns": [
+            "demande_id"
+          ],
+          "value": {
+            "demande_id": "={{ $('Vos réglages').item.json.demande_id }}",
+            "statut": "répondue (humain)",
+            "repondu_le": "={{ $now.toISO() }}",
+            "repondu_par": "humain",
+            "maj_le": "={{ $now.toISO() }}"
+          },
+          "schema": [
+            {
+              "id": "demande_id",
+              "displayName": "demande_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "statut",
+              "displayName": "statut",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "repondu_le",
+              "displayName": "repondu_le",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "repondu_par",
+              "displayName": "repondu_par",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "maj_le",
+              "displayName": "maj_le",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "542a7a2c-f270-5bb2-b897-a547a1df4f0c",
+      "name": "Marquer la demande répondue",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        880,
+        100
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "mode": "list",
+          "value": ""
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "name",
+          "value": "Échanges"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "echange_id": "={{ 'E' + Date.now().toString(36).toUpperCase() }}",
+            "demande_id": "={{ $('Vos réglages').item.json.demande_id }}",
+            "sens": "sortant",
+            "type": "réponse humaine",
+            "statut": "envoyé",
+            "sujet": "=Re: {{ String($('Vos réglages').item.json.sujet).replace(/\\s*\\[REF [^\\]]+\\]/g, '') }} [REF {{ $('Vos réglages').item.json.demande_id }}]",
+            "corps": "={{ $('Vos réglages').item.json.votre_reponse }}",
+            "cree_le": "={{ $now.toISO() }}",
+            "envoye_le": "={{ $now.toISO() }}",
+            "message_id": "={{ $('Envoyer votre réponse').item.json.messageId || '' }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "echange_id",
+              "displayName": "echange_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "demande_id",
+              "displayName": "demande_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "sens",
+              "displayName": "sens",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "type",
+              "displayName": "type",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "statut",
+              "displayName": "statut",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "sujet",
+              "displayName": "sujet",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "corps",
+              "displayName": "corps",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "cree_le",
+              "displayName": "cree_le",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "envoye_le",
+              "displayName": "envoye_le",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "message_id",
+              "displayName": "message_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "1a6feaa3-7a39-50f0-808c-208f2203914c",
+      "name": "Noter l'échange",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        1100,
+        100
+      ]
+    }
+  ],
+  "connections": {
+    "Réponse écrite dans le tableur": {
+      "main": [
+        [
+          {
+            "node": "Réponse à envoyer ?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Réponse à envoyer ?": {
+      "main": [
+        [
+          {
+            "node": "Vos réglages",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Vos réglages": {
+      "main": [
+        [
+          {
+            "node": "Envoyer votre réponse",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Envoyer votre réponse": {
+      "main": [
+        [
+          {
+            "node": "Marquer la demande répondue",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Marquer la demande répondue": {
+      "main": [
+        [
+          {
+            "node": "Noter l'échange",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "pinData": {},
+  "meta": {
+    "templateCredsSetupCompleted": false
+  }
+}

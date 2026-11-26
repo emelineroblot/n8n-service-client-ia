@@ -1,0 +1,167 @@
+{
+  "name": "Service client 01 - Réception des e-mails",
+  "nodes": [
+    {
+      "parameters": {
+        "content": "## 01 · Réception des e-mails\n\nChaque minute, relève les e-mails **non lus** envoyés à l'adresse du service client, les fait traiter un par un par le workflow 03, puis les marque comme lus.\n\n**À régler** : votre compte Gmail, l'adresse du service client dans le filtre (`to:…`), et le workflow 03 dans « Traiter la demande (03) ».",
+        "width": 760,
+        "height": 220,
+        "color": 4
+      },
+      "id": "04fb9f56-7629-58d8-8658-793eed3dbe96",
+      "name": "Note",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -40,
+        -260
+      ]
+    },
+    {
+      "parameters": {
+        "pollTimes": {
+          "item": [
+            {
+              "mode": "everyMinute"
+            }
+          ]
+        },
+        "simple": false,
+        "filters": {
+          "q": "to:service-client@votre-boutique.fr",
+          "readStatus": "unread"
+        },
+        "options": {}
+      },
+      "id": "9e696254-f1d9-58ab-becc-6072496692ba",
+      "name": "Nouvel e-mail au service client",
+      "type": "n8n-nodes-base.gmailTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        0,
+        100
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "language": "javaScript",
+        "jsCode": "// E-mail reçu (Gmail, format complet) -> message à traiter.\nconst e = $json;\nconst de = (e.from && e.from.value && e.from.value[0]) || {};\nconst entetes = {};\nfor (const [k, v] of Object.entries(e.headers || {})) entetes[String(k).toLowerCase()] = String(v);\nconst zone = 'Europe/Paris';\nreturn {\n  json: {\n    canal: 'email',\n    texte: e.text || e.html || e.textAsHtml || '',\n    de_email: String(de.address || '').toLowerCase(),\n    de_nom: de.name || '',\n    sujet: e.subject || '',\n    message_id: e.messageId || e.id || '',\n    recu_le: e.date ? DateTime.fromJSDate(new Date(e.date)).setZone(zone).toISO({ suppressMilliseconds: true })\n      : DateTime.now().setZone(zone).toISO({ suppressMilliseconds: true }),\n    entetes,\n    chat: null,\n    gmail_id: e.id || '',\n  },\n};\n"
+      },
+      "id": "0cee8e8a-b046-5a5a-b203-71ec68776861",
+      "name": "Normaliser l'e-mail",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        220,
+        100
+      ]
+    },
+    {
+      "parameters": {
+        "source": "database",
+        "workflowId": {
+          "__rl": true,
+          "mode": "list",
+          "value": ""
+        },
+        "mode": "each",
+        "options": {
+          "waitForSubWorkflow": true
+        }
+      },
+      "id": "35c8d3aa-facf-575f-b95d-9913fb9b9899",
+      "name": "Traiter la demande (03)",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        440,
+        100
+      ],
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "language": "javaScript",
+        "jsCode": "return $('Normaliser l\\'e-mail').all().map(i => ({ json: { gmail_id: i.json.gmail_id } }));\n"
+      },
+      "id": "d2be62be-8e84-514c-a50b-f172632e1c31",
+      "name": "E-mails traités",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        660,
+        100
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "message",
+        "operation": "markAsRead",
+        "messageId": "={{ $json.gmail_id }}"
+      },
+      "id": "bc4f4aa4-4b7f-5396-be1e-499d90b8abc4",
+      "name": "Marquer comme lu",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [
+        880,
+        100
+      ]
+    }
+  ],
+  "connections": {
+    "Nouvel e-mail au service client": {
+      "main": [
+        [
+          {
+            "node": "Normaliser l'e-mail",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Normaliser l'e-mail": {
+      "main": [
+        [
+          {
+            "node": "Traiter la demande (03)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Traiter la demande (03)": {
+      "main": [
+        [
+          {
+            "node": "E-mails traités",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "E-mails traités": {
+      "main": [
+        [
+          {
+            "node": "Marquer comme lu",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "pinData": {},
+  "meta": {
+    "templateCredsSetupCompleted": false
+  }
+}

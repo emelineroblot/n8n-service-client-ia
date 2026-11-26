@@ -1,0 +1,135 @@
+{
+  "name": "Service client 02 - Chat du site",
+  "nodes": [
+    {
+      "parameters": {
+        "content": "## 02 · Chat du site\n\nLa bulle de chat de votre site appelle cette adresse (POST) avec `{ \"message\", \"numero_commande\", \"email\" }` et un en-tête secret. La demande passe par le même cerveau (03), et la réponse revient **tout de suite** : `{ \"reponse\", \"statut\" }`, à afficher dans la bulle. Le client donne son numéro de commande et son e-mail : sans correspondance, aucune information n'est donnée.\n\n**À régler** : l'identifiant « Header Auth » (nom de l'en-tête et secret, à reprendre dans votre site), et le workflow 03 dans « Traiter la demande (03) ».",
+        "width": 760,
+        "height": 260,
+        "color": 4
+      },
+      "id": "56fb4616-197c-5519-b985-759c14f6c2c6",
+      "name": "Note",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -40,
+        -300
+      ]
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "service-client-chat",
+        "authentication": "headerAuth",
+        "responseMode": "lastNode",
+        "responseData": "firstEntryJson",
+        "options": {}
+      },
+      "id": "a667bc34-c6bc-5866-aacb-dfb021ceec85",
+      "name": "Message du chat",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        0,
+        100
+      ],
+      "webhookId": "8aad2bb2-e6f9-5fd4-a722-dd6a0aea9b10"
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "language": "javaScript",
+        "jsCode": "// Message du chat -> message à traiter (taille bornée ; n° de commande et e-mail saisis gardés à part).\nconst b = $json.body || {};\nconst email = String(b.email || '').trim().toLowerCase();\nreturn {\n  json: {\n    canal: 'chat',\n    texte: String(b.message || '').slice(0, 2000),\n    de_email: email,\n    de_nom: '',\n    sujet: 'Chat du site',\n    message_id: 'chat-' + Date.now().toString(36),\n    recu_le: DateTime.now().setZone('Europe/Paris').toISO({ suppressMilliseconds: true }),\n    entetes: {},\n    chat: { numero_commande: String(b.numero_commande || '').slice(0, 20), email },\n  },\n};\n"
+      },
+      "id": "d3a5d046-0334-5d06-bf34-9df57c02aab4",
+      "name": "Normaliser le message",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        220,
+        100
+      ]
+    },
+    {
+      "parameters": {
+        "source": "database",
+        "workflowId": {
+          "__rl": true,
+          "mode": "list",
+          "value": ""
+        },
+        "mode": "each",
+        "options": {
+          "waitForSubWorkflow": true
+        }
+      },
+      "id": "e643f730-66c2-50db-a891-296f233bd777",
+      "name": "Traiter la demande (03)",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        440,
+        100
+      ],
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "language": "javaScript",
+        "jsCode": "const r = $input.first().json;\nreturn [{ json: {\n  reponse: r.reponse_chat || \"Merci, votre demande est transmise à notre service client : vous recevrez une réponse par e-mail.\",\n  statut: r.statut || 'à traiter',\n} }];\n"
+      },
+      "id": "e7953840-b4a7-57a7-ad7b-60b4a14d3ad5",
+      "name": "Réponse à afficher",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        660,
+        100
+      ]
+    }
+  ],
+  "connections": {
+    "Message du chat": {
+      "main": [
+        [
+          {
+            "node": "Normaliser le message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Normaliser le message": {
+      "main": [
+        [
+          {
+            "node": "Traiter la demande (03)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Traiter la demande (03)": {
+      "main": [
+        [
+          {
+            "node": "Réponse à afficher",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "pinData": {},
+  "meta": {
+    "templateCredsSetupCompleted": false
+  }
+}
